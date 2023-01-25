@@ -106,9 +106,9 @@ def read_sf_auth_values(customer, environment, cluster_name):
             'PASSWORD': password,
             'ORGANIZATION_ID': app.config.get('OPSCARE_CUSTOMER_INFO')[customer]['sf_org_id'],
             'ENVIRONMENT_ID': env_id,
-            'SANDBOX_ENABLED': app.config.get('SFDC_SANDBOX_ENABLED'),
-            'FEED_ENABLED': app.config.get('SFDC_FEED_ENABLED'),
-            'HASH_FUNC': app.config.get('SFDC_HASH_FUNC')
+            'SANDBOX_ENABLED': app.config.get('SFDC_SANDBOX_ENABLED', False),
+            'FEED_ENABLED': app.config.get('SFDC_FEED_ENABLED', False),
+            'HASH_FUNC': app.config.get('SFDC_HASH_FUNC', '')
         }
         LOG.debug(f'SFDC values read from alertad.conf: {values}')
         return values
