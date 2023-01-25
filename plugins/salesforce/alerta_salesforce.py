@@ -126,7 +126,12 @@ class SFIntegration(PluginBase):
         return alert
     
     def post_receive(self, alert, **kwargs):
-        return
+        if alert.event == 'HeartbeatFail':
+            alert.severity = 'Critical'
+            LOG.debug(f'Ready to send HeartbeatFail alert for {alert.resource} to SalesForce')
+            self.take_action(alert, 'salesforce', '')
+            LOG.debug(f'HeartbeatFail alert sent for {alert.resource}')
+            return alert
 
     def status_change(self, alert, status, text, **kwargs):
         return alert
