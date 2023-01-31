@@ -83,18 +83,19 @@ def get_sf_env_credentials(customer, environment, cluster_name):
             if cluster_info['name'] == cluster_name:
                 env_id = cluster_info['sf_env_id']
                 if 'sf_env_username' in cluster_info.keys():
-                    username = cluster_info['sf_env_username']
+                    username = cluster_info['sf_username']
                 if 'sf_env_password' in cluster_info.keys():
-                    password = cluster_info['sf_env_password']
+                    password = cluster_info['sf_password']
                 break
+        # if any values weren't found at the cluster level, look for them in the environment level
         if not env_id:
-            raise LookupError
+            env_id = env_clusters['sf_env_id']
         if not username:
             username = env_clusters['sf_username']
         if not password:
             password = env_clusters['sf_password']
     except Exception as e:
-        LOG.error(e)
+        LOG.error(f'Unable to find SFDC credentials for {environment}/{cluster_name}: {e}')
     return env_id, username, password
 
 def read_sf_auth_values(customer, environment, cluster_name):
