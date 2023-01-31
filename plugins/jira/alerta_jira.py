@@ -22,9 +22,11 @@ JIRA_PASS = app.config.get('JIRA_PASS') or os.environ.get('JIRA_PASS')
 
 class JiraCreate(PluginBase):
     def __init__ (self, name=None):
+        LOG.debug(f'JIRA_ACTION_ONLY is set to {JIRA_ACTION_ONLY}')
+        LOG.debug(f'JIRA_PROJECT is set to {JIRA_PROJECT}')
         super(JiraCreate, self).__init__(name)
 
-    def _sendjira(self, host, event, value, chart, text, severity):
+    def _sendjira(self, resource, event, value, environment, customer, text, severity):
         LOG.info('JIRA: Create task ...')
         userpass = "%s:%s" %(JIRA_USER, JIRA_PASS)
         userAndPass = b64encode(bytes(userpass, "utf-8")).decode("ascii")
@@ -37,8 +39,9 @@ class JiraCreate(PluginBase):
                 {
                     "key": "%s" %(JIRA_PROJECT)
                 },
-                "summary": "Server %s: alert %s in chart %s - Severity: %s" %(host.upper(), event.upper(), chart.upper(), severity.upper()),
-                "description": "The chart %s INFO: %s. \nVALUE: %s." %(chart, text, value),
+                "summary": f"{severity.upper()} - Cluster {resource.upper()}: alert {event.upper()}",
+                "description": f"Alert text: {text}\nValue: {value}",
+                "environment": f"Customer: {customer}\nEnvironment/Cluster: {environment}/{resource}",
                 "issuetype": {
                     "name": "Bug"
                 },
@@ -61,21 +64,15 @@ class JiraCreate(PluginBase):
             LOG.info("Jira: Received an alert")
             LOG.debug("Jira: ALERT       {}".format(alert))
             LOG.debug("Jira: ID          {}".format(alert.id))
+            LOG.debug("Jira: CUSTOMER    {}".format(alert.customer))
             LOG.debug("Jira: RESOURCE    {}".format(alert.resource))
+            LOG.debug("Jira: ENVIRONMENT {}".format(alert.environment))
             LOG.debug("Jira: EVENT       {}".format(alert.event))
             LOG.debug("Jira: SEVERITY    {}".format(alert.severity))
             LOG.debug("Jira: TEXT        {}".format(alert.text))
 
-            # get basic info from alert
-            host = alert.resource.split(':')[0]
-            LOG.debug("JIRA: HOST        {}".format(host))
-            chart = ".".join(alert.event.split('.')[:-1])
-            LOG.debug("JIRA: CHART       {}".format(chart))
-            event = alert.event.split('.')[-1]
-            LOG.debug("JIRA: EVENT       {}".format(event))
-
             # call the _sendjira and modify de text (discription)
-            task = self._sendjira(host, event, alert.value, chart, alert.text, alert.severity)
+            task = self._sendjira(alert.resource, alert.event, alert.value, alert.environment, alert.customer, alert.text, alert.severity)
             task_url = "https://" + JIRA_URL + "/browse/" + task
             href = '<a href="%s" target="_blank">%s</a>' %(task_url, task)
             alert.attributes = {'Jira Task': href}
@@ -97,6 +94,7 @@ class JiraCreate(PluginBase):
                 self._alertjira(alert)
                 return alert
         else:
+            LOG.debug('ignoring new alert because JIRA_ACTION_ONLY is set to True')
             return
 
     # triggered by external status changes, used by integrations
