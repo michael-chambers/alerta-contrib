@@ -21,6 +21,7 @@ class NormaliseAlert(PluginBase):
     def pre_receive(self, alert):
 
         LOG.info(f'Normalising {alert.event} alert {alert.id}')
+        cluster_info = ""
 
         try:
             i = 0
