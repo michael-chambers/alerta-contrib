@@ -31,13 +31,14 @@ class NormaliseAlert(PluginBase):
                     alert.tags.pop(i)
                     break
                 i += 1
-            env = cluster_info.split('/')
-            LOG.debug(f'Cluster information is {env}')
-            cluster_id = env[2]
-            customer, environment, cluster_name = get_info(cluster_id)
-            alert.customer = customer
-            alert.environment = environment
-            alert.resource = cluster_name
+            if len(cluster_info) > 0:
+                env = cluster_info.split('/')
+                LOG.debug(f'Cluster information is {env}')
+                cluster_id = env[2]
+                customer, environment, cluster_name = get_info(cluster_id)
+                alert.customer = customer
+                alert.environment = environment
+                alert.resource = cluster_name
         except Exception:
             LOG.error(Exception.with_traceback())
             LOG.error(f'Unable to correctly normalise cluster information for {cluster_id}')
