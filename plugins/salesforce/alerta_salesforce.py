@@ -158,10 +158,12 @@ class SFIntegration(PluginBase):
         return alert, action, text
 
     def take_note(self, alert, text, **kwargs):
+        LOG.debug(f"checking for SFDC ticket in note: {text}")
         if re.search("https://mirantis.my.salesforce.com/", text):
+            LOG.debug("SFDC ticket found in note")
             ticket =  re.findall("https://mirantis.my.salesforce.com/[a-zA-Z0-9]{15}", text)
             ticket_id = ticket.split("/")[3]
-            alert.attributes['tickets'].append("<a href={}>{}<a>".format(ticket, ticket_id)
+            alert.attributes['tickets'].append("<a href={}>{}<a>".format(ticket, ticket_id))
         return
 
 class SalesforceClient(object):
