@@ -138,10 +138,10 @@ class SFIntegration(PluginBase):
         return alert
 
     def take_action(self, alert, action, text, **kwargs):
-        configValues = read_sf_auth_values(alert.customer, alert.environment, alert.resource)
-        self.client = SalesforceClient(configValues)
-        LOG.debug("Preparing to send alert to SalesForce")
         if action == 'salesforce':
+            configValues = read_sf_auth_values(alert.customer, alert.environment, alert.resource)
+            self.client = SalesforceClient(configValues)
+            LOG.debug("Preparing to send alert to SalesForce")
             if not 'case_link' in alert.attributes.keys():
                 sf_response = self.client.create_case(f'SRE [{alert.severity.upper()}] {alert.event}', alert.text, alert.serialize)
                 if sf_response['status'] == 'created':
