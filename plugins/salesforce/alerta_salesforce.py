@@ -162,7 +162,7 @@ class SFIntegration(PluginBase):
         if re.search("https://mirantis.my.salesforce.com/", text):
             LOG.debug("SFDC ticket found in note")
             ticket =  re.findall("https://mirantis.my.salesforce.com/[a-zA-Z0-9]{15}", text)[0]
-            ticket_id = ticket.split("/")[3]
+            ticket_id = ticket.split("/")[-1]
             alert.attributes['salesforce'] = "<a href={}>{}<a>".format(ticket, ticket_id)
         return alert
 

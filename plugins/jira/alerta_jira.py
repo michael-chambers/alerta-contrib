@@ -119,6 +119,6 @@ class JiraCreate(PluginBase):
         if re.search("https://mirantis.jira.com/browse/", text):
             LOG.debug("Jira ticket found in note")
             ticket =  re.findall("https://mirantis.jira.com/browse/[a-zA-Z]+-[0-9]+", text)[0]
-            ticket_id = ticket.split("/")[4]
+            ticket_id = ticket.split("/")[-1]
             alert.attributes['jira'] = "<a href={}>{}<a>".format(ticket, ticket_id)
         return alert
