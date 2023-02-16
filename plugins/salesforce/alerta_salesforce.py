@@ -13,6 +13,7 @@ from simple_salesforce import Salesforce
 from simple_salesforce import exceptions as sf_exceptions
 
 from alerta.plugins import PluginBase, app
+import re
 
 
 STATE_MAP = {
@@ -146,7 +147,7 @@ class SFIntegration(PluginBase):
                 sf_response = self.client.create_case(f'SRE [{alert.severity.upper()}] {alert.event}', alert.text, alert.serialize)
                 if sf_response['status'] == 'created':
                     case_link = "https://mirantis.my.salesforce.com/{}".format(sf_response['case_id'])
-                    alert.attributes['Case link'] = "<a href={}>{}<a>".format(case_link,sf_response['case_id'])
+                    alert.attributes['salesforce'] = "<a href={}>{}<a>".format(case_link,sf_response['case_id'])
                     text = "SalesForce case created"
                 elif sf_response['status'] == 'duplicate':
                     text = "SalesForce case exists for this alert"
@@ -155,6 +156,15 @@ class SFIntegration(PluginBase):
             else:
                 text = "SalesForce case already created for this alert"
         return alert, action, text
+
+    def take_note(self, alert, text, **kwargs):
+        LOG.debug(f"checking for SFDC ticket in note: {text}")
+        if re.search("https://mirantis.my.salesforce.com/", text):
+            LOG.debug("SFDC ticket found in note")
+            ticket =  re.findall("https://mirantis.my.salesforce.com/[a-zA-Z0-9]{15}", text)[0]
+            ticket_id = ticket.split("/")[-1]
+            alert.attributes['salesforce'] = "<a href={}>{}<a>".format(ticket, ticket_id)
+        return alert
 
 class SalesforceClient(object):
     def __init__(self, config):
