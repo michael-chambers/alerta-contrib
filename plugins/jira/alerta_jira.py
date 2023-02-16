@@ -3,6 +3,7 @@ import os
 import http.client
 import json
 from base64 import b64encode
+import re
 
 try:
     from alerta.plugins import app  # alerta >= 5.0
@@ -75,7 +76,7 @@ class JiraCreate(PluginBase):
             task = self._sendjira(alert.resource, alert.event, alert.value, alert.environment, alert.customer, alert.text, alert.severity)
             task_url = "https://" + JIRA_URL + "/browse/" + task
             href = '<a href="%s" target="_blank">%s</a>' %(task_url, task)
-            alert.attributes = {'Jira Task': href}
+            alert.attributes['jira'] = href
             return alert
 
         except Exception as e:
@@ -103,7 +104,7 @@ class JiraCreate(PluginBase):
 
     def take_action(self, alert, action, text, **kwargs):
         if action == 'jira':
-            if not 'Jira Task' in alert.attributes:
+            if not 'jira' in alert.attributes:
                 self._alertjira(alert)
                 if 'Jira Task' in alert.attributes:
                     text = "Jira task created"
@@ -112,3 +113,12 @@ class JiraCreate(PluginBase):
             else:
                 text = "Jira task already exists for this alert"
         return alert, action, text
+
+    def take_note(self, alert, text, **kwargs):
+        LOG.debug(f"checking for Jira ticket in note: {text}")
+        if re.search("https://mirantis.jira.com/browse/", text):
+            LOG.debug("Jira ticket found in note")
+            ticket =  re.findall("https://mirantis.jira.com/browse/[a-zA-Z]+-[0-9]+", text)[0]
+            ticket_id = ticket.split("/")[4]
+            alert.attributes['jira'] = "<a href={}>{}<a>".format(ticket, ticket_id)
+        return alert
