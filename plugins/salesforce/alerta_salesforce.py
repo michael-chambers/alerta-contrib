@@ -84,9 +84,9 @@ def get_sf_env_credentials(customer, environment, cluster_name):
             if cluster_info['name'] == cluster_name:
                 if 'sf_env_id' in cluster_info.keys():
                     env_id = cluster_info['sf_env_id']
-                if 'sf_env_username' in cluster_info.keys():
+                if 'sf_username' in cluster_info.keys():
                     username = cluster_info['sf_username']
-                if 'sf_env_password' in cluster_info.keys():
+                if 'sf_password' in cluster_info.keys():
                     password = cluster_info['sf_password']
                 break
         # if any values weren't found at the cluster level, look for them in the environment level
