@@ -38,16 +38,17 @@ class JiraCreate(PluginBase):
             "fields": {
                 "project":
                 {
-                    "key": "%s" %(JIRA_PROJECT)
+                    "key": f"{JIRA_PROJECT}"
                 },
                 "summary": f"{severity.upper()} - Cluster {resource.upper()}: alert {event.upper()}",
                 "description": f"Alert text: {text}\nValue: {value}",
-                "environment": f"Customer: {customer}\nEnvironment/Cluster: {environment}/{resource}",
+                "labels": [f"{customer}", f"{environment}"],
                 "issuetype": {
                     "name": "Bug"
-                },
+                }
             }
         }
+        LOG.debug(f"payload_dict is: {payload_dict}")
         payload = json.dumps(payload_dict, indent = 4)
         headers = {
             'Content-Type': "application/json",
@@ -65,15 +66,15 @@ class JiraCreate(PluginBase):
             LOG.info("Jira: Received an alert")
             LOG.debug("Jira: ALERT       {}".format(alert))
             LOG.debug("Jira: ID          {}".format(alert.id))
-            LOG.debug("Jira: CUSTOMER    {}".format(alert.customer))
+            LOG.debug("Jira: CUSTOMER    {}".format(alert.customer.replace(" ", "")))
             LOG.debug("Jira: RESOURCE    {}".format(alert.resource))
-            LOG.debug("Jira: ENVIRONMENT {}".format(alert.environment))
+            LOG.debug("Jira: ENVIRONMENT {}".format(alert.environment.replace(" ", "")))
             LOG.debug("Jira: EVENT       {}".format(alert.event))
             LOG.debug("Jira: SEVERITY    {}".format(alert.severity))
             LOG.debug("Jira: TEXT        {}".format(alert.text))
 
             # call the _sendjira and modify de text (discription)
-            task = self._sendjira(alert.resource, alert.event, alert.value, alert.environment, alert.customer, alert.text, alert.severity)
+            task = self._sendjira(alert.resource, alert.event, alert.value, alert.environment.replace(" ", ""), alert.customer.replace(" ", ""), alert.text, alert.severity)
             task_url = "https://" + JIRA_URL + "/browse/" + task
             href = '<a href="%s" target="_blank">%s</a>' %(task_url, task)
             alert.attributes['jira'] = href
@@ -106,7 +107,7 @@ class JiraCreate(PluginBase):
         if action == 'jira':
             if not 'jira' in alert.attributes:
                 self._alertjira(alert)
-                if 'Jira Task' in alert.attributes:
+                if 'jira' in alert.attributes:
                     text = "Jira task created"
                 else:
                     text = "Jira task creation failed"
