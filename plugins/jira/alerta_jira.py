@@ -123,7 +123,7 @@ class JiraCreate(PluginBase):
             LOG.debug("Jira ticket found in note")
             ticket =  re.findall("https://mirantis.jira.com/browse/[a-zA-Z]+-[0-9]+", text)[0]
             ticket_id = ticket.split("/")[-1]
-            alert.attributes['jira'] = '<a href={} target="_blank">{}<a>' %(ticket, ticket_id)
+            alert.attributes['jira'] = '<a href="%s" target="_blank">%s<a>' %(ticket, ticket_id)
             if alert.status == 'open':
                 alert.status = 'ack'
         return alert
