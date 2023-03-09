@@ -316,7 +316,10 @@ class SalesforceClient(object):
         severity = labels.get('severity', 'unknown').upper()
         services = labels.get('service', 'UNKNOWN')
         if isinstance(services, list):
-            service = services[0]
+            if len(services) >= 1:
+                service = services[0]
+            else:
+                service = 'UKNOWN'
         else:
             service = services
         payload = {
