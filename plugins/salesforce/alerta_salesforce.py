@@ -145,15 +145,18 @@ class SFIntegration(PluginBase):
             self.client = SalesforceClient(configValues)
             LOG.debug("Preparing to send alert to SalesForce")
             if not 'salesforce' in alert.attributes.keys():
-                sf_response = self.client.create_case(f'SRE [{alert.severity.upper()}] {alert.event}', alert.text, alert.serialize)
-                if sf_response['status'] == 'created':
-                    case_link = "https://mirantis.my.salesforce.com/{}".format(sf_response['case_id'])
-                    alert.attributes['salesforce'] = '<a href="%s" target="_blank">%s<a>' %(case_link,sf_response['case_id'])
-                    text = "SalesForce case created"
-                elif sf_response['status'] == 'duplicate':
-                    text = "SalesForce case exists for this alert"
+                if 'jira' in alert.attribute.keys():
+                    sf_response = self.client.create_case(f'SRE [{alert.severity.upper()}] {alert.event}', alert.text, alert.serialize)
+                    if sf_response['status'] == 'created':
+                        case_link = "https://mirantis.my.salesforce.com/{}".format(sf_response['case_id'])
+                        alert.attributes['salesforce'] = '<a href="%s" target="_blank">%s<a>' %(case_link,sf_response['case_id'])
+                        text = "SalesForce case created"
+                    elif sf_response['status'] == 'duplicate':
+                        text = "SalesForce case exists for this alert"
+                    else:
+                        text = "Failed to create SalesForce case, check logs"
                 else:
-                    text = "Failed to create SalesForce case, check logs"
+                    text = "JIRA issue required before creating SalesForce case"
             else:
                 text = "SalesForce case already created for this alert"
         return alert, action, text
