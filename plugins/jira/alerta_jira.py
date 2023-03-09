@@ -108,6 +108,8 @@ class JiraCreate(PluginBase):
             if not 'jira' in alert.attributes:
                 self._alertjira(alert)
                 if 'jira' in alert.attributes:
+                    if alert.status == 'open':
+                        alert.status = 'ack'
                     text = "Jira task created"
                 else:
                     text = "Jira task creation failed"
@@ -121,5 +123,7 @@ class JiraCreate(PluginBase):
             LOG.debug("Jira ticket found in note")
             ticket =  re.findall("https://mirantis.jira.com/browse/[a-zA-Z]+-[0-9]+", text)[0]
             ticket_id = ticket.split("/")[-1]
-            alert.attributes['jira'] = "<a href={}>{}<a>".format(ticket, ticket_id)
+            alert.attributes['jira'] = '<a href="%s" target="_blank">%s<a>' %(ticket, ticket_id)
+            if alert.status == 'open':
+                alert.status = 'ack'
         return alert

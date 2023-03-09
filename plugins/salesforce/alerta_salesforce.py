@@ -148,7 +148,7 @@ class SFIntegration(PluginBase):
                 sf_response = self.client.create_case(f'SRE [{alert.severity.upper()}] {alert.event}', alert.text, alert.serialize)
                 if sf_response['status'] == 'created':
                     case_link = "https://mirantis.my.salesforce.com/{}".format(sf_response['case_id'])
-                    alert.attributes['salesforce'] = "<a href={}>{}<a>".format(case_link,sf_response['case_id'])
+                    alert.attributes['salesforce'] = '<a href="%s" target="_blank">%s<a>' %(case_link,sf_response['case_id'])
                     text = "SalesForce case created"
                 elif sf_response['status'] == 'duplicate':
                     text = "SalesForce case exists for this alert"
@@ -164,7 +164,7 @@ class SFIntegration(PluginBase):
             LOG.debug("SFDC ticket found in note")
             ticket =  re.findall("https://mirantis.my.salesforce.com/[a-zA-Z0-9]{15}", text)[0]
             ticket_id = ticket.split("/")[-1]
-            alert.attributes['salesforce'] = "<a href={}>{}<a>".format(ticket, ticket_id)
+            alert.attributes['salesforce'] = '<a href="%s" target="_blank">%s<a>' %(ticket, ticket_id)
         return alert
 
 class SalesforceClient(object):
@@ -314,6 +314,14 @@ class SalesforceClient(object):
             return 1, self._registered_alerts[alert_id]['Id']
 
         severity = labels.get('severity', 'unknown').upper()
+        services = labels.get('service', 'UNKNOWN')
+        if isinstance(services, list):
+            if len(services) >= 1:
+                service = services[0]
+            else:
+                service = 'UKNOWN'
+        else:
+            service = services
         payload = {
             'Subject': subject,
             'Description': body,
@@ -322,7 +330,7 @@ class SalesforceClient(object):
             'Alert_Host__c': labels.get('resource') or labels.get(
                 'instance', 'UNKNOWN'
             ),
-            'Alert_Service__c': labels.get('service', 'UNKNOWN')[0],
+            'Alert_Service__c': service,
             'Environment2__c': self.environment,
             'Alert_ID__c': alert_id,
             'ClusterId__c': labels['attributes'].get('cluster_id', '')
