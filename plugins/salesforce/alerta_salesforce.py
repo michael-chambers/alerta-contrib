@@ -314,6 +314,11 @@ class SalesforceClient(object):
             return 1, self._registered_alerts[alert_id]['Id']
 
         severity = labels.get('severity', 'unknown').upper()
+        services = labels.get('service', 'UNKNOWN')
+        if isinstance(services, list):
+            service = services[0]
+        else:
+            service = services
         payload = {
             'Subject': subject,
             'Description': body,
@@ -322,7 +327,7 @@ class SalesforceClient(object):
             'Alert_Host__c': labels.get('resource') or labels.get(
                 'instance', 'UNKNOWN'
             ),
-            'Alert_Service__c': labels.get('service', 'UNKNOWN')[0],
+            'Alert_Service__c': service,
             'Environment2__c': self.environment,
             'Alert_ID__c': alert_id,
             'ClusterId__c': labels['attributes'].get('cluster_id', '')
