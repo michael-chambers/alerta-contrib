@@ -1,7 +1,11 @@
+import logging
 import os
 import requests
 
 from alerta.plugins import PluginBase, app
+
+# set plugin logger
+LOG = logging.getLogger('alerta.plugins.auto-blackout')
 
 API_URL = 'http://localhost:8080/api'
 API_KEY = os.environ.get('ALERTA_API_KEY')
@@ -20,3 +24,6 @@ class AutoBlackout(PluginBase):
             }
             requests.post(f'{API_URL}/blackout', data=blackoutRequest, headers=f'Authorization: Key {API_KEY}')
         return alert
+
+    def status_change(self, alert, status, text, **kwargs):
+        return
