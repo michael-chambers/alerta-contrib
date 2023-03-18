@@ -27,7 +27,7 @@ class JiraCreate(PluginBase):
         LOG.debug(f'JIRA_PROJECT is set to {JIRA_PROJECT}')
         super(JiraCreate, self).__init__(name)
 
-    def _sendjira(self, resource, event, value, environment, customer, text, severity):
+    def _sendjira(self, resource, event, value, environment, customer, tags, text, severity):
         LOG.info('JIRA: Create task ...')
         userpass = "%s:%s" %(JIRA_USER, JIRA_PASS)
         userAndPass = b64encode(bytes(userpass, "utf-8")).decode("ascii")
@@ -43,6 +43,7 @@ class JiraCreate(PluginBase):
                 "summary": f"{severity.upper()} - Cluster {resource.upper()}: alert {event.upper()}",
                 "description": f"Alert text: {text}\nValue: {value}",
                 "labels": [f"{customer}", f"{environment}"],
+                "customfield_26095": tags,
                 "issuetype": {
                     "name": "Bug"
                 }
@@ -74,7 +75,7 @@ class JiraCreate(PluginBase):
             LOG.debug("Jira: TEXT        {}".format(alert.text))
 
             # call the _sendjira and modify de text (discription)
-            task = self._sendjira(alert.resource, alert.event, alert.value, alert.environment.replace(" ", ""), alert.customer.replace(" ", ""), alert.text, alert.severity)
+            task = self._sendjira(alert.resource, alert.event, alert.value, alert.environment.replace(" ", ""), alert.customer.replace(" ", ""), alert.tags, alert.text, alert.severity)
             task_url = "https://" + JIRA_URL + "/browse/" + task
             href = '<a href="%s" target="_blank">%s</a>' %(task_url, task)
             alert.attributes['jira'] = href
