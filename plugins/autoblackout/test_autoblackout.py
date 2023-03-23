@@ -55,3 +55,4 @@ class AutoBlackoutPluginTestCase(unittest.TestCase):
 
         # close alert
         response = self.client.post('/alert', data=json.dumps(self.close_blackoutAlert), headers=self.headers)
+        self.assertEqual(response.status_code, 201)
