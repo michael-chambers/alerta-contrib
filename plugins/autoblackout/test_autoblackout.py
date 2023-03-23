@@ -21,13 +21,23 @@ class AutoBlackoutPluginTestCase(unittest.TestCase):
         self.client = self.app.test_client()
         # self.client = current_app.test_client()
 
-        self.open_updatealert = {
-            # 'customer': 'Netskope',
+        self.open_blackoutAlert = {
             'event': 'MCCClusterUpdating',
             'resource': 'kaas-mgmt',
             'environment': 'Production',
             'service': ['mcc'],
             'severity': 'informational',
+            'status': 'open',
+            'timeout': 86400
+        }
+
+        self.close_blackoutAlert = {
+            'event': 'MCCClusterUpdating',
+            'resource': 'kaas-mgmt',
+            'environment': 'Production',
+            'service': ['mcc'],
+            'severity': 'informational',
+            'status': 'closed',
             'timeout': 86400
         }
 
@@ -40,5 +50,8 @@ class AutoBlackoutPluginTestCase(unittest.TestCase):
         plugins.plugins['autoblackout'] = AutoBlackout()
 
         # create alert
-        response = self.client.post('/alert', data=json.dumps(self.open_updatealert), headers=self.headers)
+        response = self.client.post('/alert', data=json.dumps(self.open_blackoutAlert), headers=self.headers)
         self.assertEqual(response.status_code, 201)
+
+        # close alert
+        response = self.client.post('/alert', data=json.dumps(self.close_blackoutAlert), headers=self.headers)
