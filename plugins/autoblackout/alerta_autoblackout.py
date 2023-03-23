@@ -8,7 +8,7 @@ from alerta.plugins import PluginBase, app
 from alerta.models.alert import Alert
 
 # set plugin logger
-LOG = logging.getLogger('alerta.plugins.auto-blackout')
+LOG = logging.getLogger('alerta.plugins.autoblackout')
 
 BASE_URL = app.config.get('BASE_URL') or os.environ.get('BASE_URL')
 API_URL = f'http://localhost:8080{BASE_URL}'
@@ -36,26 +36,28 @@ class AutoBlackout(PluginBase):
     def pre_receive(self, alert, **kwargs):
         # check to see if this alert is closing out an AUTOBLACKOUT event, and if so, delete the matching blackout
         if alert is not None:
+            LOG.debug(f'reached pre_receive function for alert {alert.id}: {alert.event} {alert.status} {alert.severity}')
             if BLACKOUT_EVENTS is None:
                 return alert
             # only process when an alert is closed
-            if alert.status == 'closed':
+            if str.upper(alert.status) == 'CLOSED' or str.upper(alert.severity) == 'NORMAL':
                 # check that alert event is an AUTOBLACKOUT event
                 for event in BLACKOUT_EVENTS:
                     if str.upper(event) == str.upper(alert.event):
                         blackoutId = ""
                         response = requests.get(self.getBlackoutsUrl, headers=self.authorizationHeader)
                         blackout_data = json.loads(response.text)
+                        LOG.debug('Autoblackout close event received, searching for existing blackout')
                         # iterate through returned blackouts and match for environment and tag
                         # then record the ID of the matching blackout
                         for blackout in blackout_data['blackouts']:
                             if str.upper(blackout['environment']) == str.upper(alert.environment):
-                                for tag in blackout['tags']:
-                                    if tag == alert.event:
-                                        blackoutId = blackout['id']
-                                        break
+                                if blackout['text'] == alert.event:
+                                    blackoutId = blackout['id']
+                                    break
                         # delete the existing blackout
                         if blackoutId != "":
+                            LOG.debug('existing blackout found, attempting to delete')
                             deleteBlackoutUrl = f'{self.blackoutUrl}/{blackoutId}'
                             requests.delete(deleteBlackoutUrl, headers=self.authorizationHeader)
         return alert
@@ -75,11 +77,12 @@ class AutoBlackout(PluginBase):
                         # construct the blackout request
                         blackoutRequest = {
                             "environment": alert.environment,
-                            "tags": [alert.event],
+                            "text": alert.event,
                         }
                         try:
                             # create the blackout
                             requests.post(self.blackoutUrl, json=blackoutRequest, headers=self.blackoutHeaders)
+                            LOG.debug('blackout created successfully')
                         except Exception:
                             LOG.error(f'Unable to complete POST API request to create blackout for alert {alert.id}')
         return alert
