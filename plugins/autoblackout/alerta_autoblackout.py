@@ -56,10 +56,14 @@ class AutoBlackout(PluginBase):
 
     def _deleteblackout(self, alert):
         blackoutId = ""
-        if app.config.get('AUTH_REQUIRED'):
-            response = requests.get(self.getBlackoutsUrl, headers=self.authorizationHeader)
-        else:
-            response = requests.get(self.getBlackoutsUrl)
+        try:
+            if app.config.get('AUTH_REQUIRED'):
+                response = requests.get(self.getBlackoutsUrl, headers=self.authorizationHeader)
+            else:
+                response = requests.get(self.getBlackoutsUrl)
+        except Exception:
+            LOG.error('unable to retrieve list of current blackouts')
+            return
         blackout_data = json.loads(response.text)
         LOG.debug('Autoblackout close event received, searching for existing blackout')
         # iterate through returned blackouts and match for environment and tag
@@ -73,7 +77,11 @@ class AutoBlackout(PluginBase):
         if blackoutId != "":
             LOG.debug('existing blackout found, attempting to delete')
             deleteBlackoutUrl = f'{self.blackoutUrl}/{blackoutId}'
-            requests.delete(deleteBlackoutUrl, headers=self.authorizationHeader)
+            try:
+                requests.delete(deleteBlackoutUrl, headers=self.authorizationHeader)
+                LOG.debug(f'blackout deleted successfully')
+            except Exception:
+                LOG.error(f'unable to delete blackout {blackoutId}')
         return
 
     def pre_receive(self, alert, **kwargs):
