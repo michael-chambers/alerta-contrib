@@ -74,9 +74,15 @@ class AutoBlackout(PluginBase):
                 for event in BLACKOUT_EVENTS:
                     if str.upper(event) == str.upper(alert.event):
                         LOG.debug(f'blackout event {alert.event} identified for alert {alert.id}')
+                        if alert.resource == 'kaas-mgmt':
+                            blackoutDuration = app.config.get('AUTOBLACKOUT_MGMT_DURATION') or app.config.get('BLACKOUT_DURATION')
+                        else:
+                            blackoutDuration = app.config.get('AUTOBLACKOUT_CHILD_DURATION') or app.config.get('BLACKOUT_DURATION')
                         # construct the blackout request
                         blackoutRequest = {
+                            "duration": blackoutDuration,
                             "environment": alert.environment,
+                            "resource": alert.resource,
                             "text": alert.event,
                         }
                         try:
