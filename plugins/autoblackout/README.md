@@ -3,7 +3,7 @@ Autoblackout Plugin
 
 Automatically creates a blackout for an environment and resource (i.e. cluster-wide) when certain specified alerts are received. Automatically deletes the blackout when the alert that caused its creation is closed.
 
-> Note: This plugin was written specifically to work with Mirantis Container Cloud (MCC) environments.
+> Note: This plugin was written specifically to work with Mirantis Container Cloud (MCC) environments. Reasonable attempts were made to made the code work in a variety of environments, but this is the reason for references to "management" and "child" clusters.
 
 Installation
 ------------

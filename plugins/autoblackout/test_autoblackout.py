@@ -54,5 +54,8 @@ class AutoBlackoutPluginTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 201)
 
         # close alert
+        # While this will succeed in posting the alert, it may not delete the blackout if the blackout plugin
+        # is listed before autoblackout in the PLUGINS configuration setting. I'm not currently sure how to fix
+        # this for this unittest
         response = self.client.post('/alert', data=json.dumps(self.close_blackoutAlert), headers=self.headers)
         self.assertEqual(response.status_code, 201)
