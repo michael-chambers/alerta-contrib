@@ -14,6 +14,7 @@ BASE_URL = app.config.get('BASE_URL') or os.environ.get('BASE_URL')
 API_URL = f'http://localhost:8080{BASE_URL}'
 API_KEY = os.environ.get('ALERTA_API_KEY') or os.environ.get('ADMIN_KEY')
 BLACKOUT_EVENTS = app.config.get('AUTOBLACKOUT_EVENTS') or os.environ.get('AUTOBLACKOUT_EVENTS')
+MGMT_CLUSTER_NAME = 'kaas-mgmt'
 
 class AutoBlackout(PluginBase):
     def __init__(self, name=None):
@@ -34,7 +35,7 @@ class AutoBlackout(PluginBase):
         super(AutoBlackout, self).__init__(name)
 
     def _createblackout(self, alert):
-        if alert.resource == 'kaas-mgmt':
+        if alert.resource == MGMT_CLUSTER_NAME:
             blackoutDuration = app.config.get('AUTOBLACKOUT_MGMT_DURATION') or app.config.get('BLACKOUT_DURATION')
         else:
             blackoutDuration = app.config.get('AUTOBLACKOUT_CHILD_DURATION') or app.config.get('BLACKOUT_DURATION')
@@ -55,7 +56,10 @@ class AutoBlackout(PluginBase):
 
     def _deleteblackout(self, alert):
         blackoutId = ""
-        response = requests.get(self.getBlackoutsUrl, headers=self.authorizationHeader)
+        if app.config.get('AUTH_REQUIRED'):
+            response = requests.get(self.getBlackoutsUrl, headers=self.authorizationHeader)
+        else:
+            response = requests.get(self.getBlackoutsUrl)
         blackout_data = json.loads(response.text)
         LOG.debug('Autoblackout close event received, searching for existing blackout')
         # iterate through returned blackouts and match for environment and tag
