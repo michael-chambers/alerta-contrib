@@ -45,14 +45,14 @@ class AutoBlackout(PluginBase):
         }
         try:
             # create the blackout
-            requests.post(self.blackout_url, json=blackout_request, headers=self.blackout_headers)
+            requests.post(self.blackout_url, json=blackout_request, headers=self.blackout_headers,timeout=30)
             LOG.debug('Blackout created successfully')
         except Exception:
-            LOG.error(f'Unable to complete POST API request to create blackout for alert {alert.id}')
+            LOG.error(f'Unable to create blackout for alert {alert.id}')
 
     def _delete_blackout(self, alert):
         try:
-            response = requests.get(self.get_blackouts_url, headers=self.authorization_header) if app.config.get('AUTH_REQUIRED') else requests.get(self.get_blackouts_url)
+            response = requests.get(self.get_blackouts_url, headers=self.authorization_header) if app.config.get('AUTH_REQUIRED') else requests.get(self.get_blackouts_url,timeout=30)
         except Exception:
             LOG.error('Unable to retrieve list of current blackouts')
             return
@@ -73,7 +73,7 @@ class AutoBlackout(PluginBase):
             LOG.debug('Existing blackout found, attempting to delete')
             delete_blackout_url = f'{self.blackout_url}/{blackout_id}'
             try:
-                requests.delete(delete_blackout_url, headers=self.authorization_header)
+                requests.delete(delete_blackout_url, headers=self.authorization_header,timeout=30)
                 LOG.debug('Blackout deleted successfully')
             except Exception:
                 LOG.error(f'Unable to delete blackout {blackout_id}')
