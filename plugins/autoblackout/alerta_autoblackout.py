@@ -14,6 +14,7 @@ API_KEY = os.environ.get('ALERTA_API_KEY') or os.environ.get('ADMIN_KEY')
 BLACKOUT_EVENTS = app.config.get('AUTOBLACKOUT_EVENTS') \
     or os.environ.get('AUTOBLACKOUT_EVENTS')
 MGMT_CLUSTER_NAME = 'kaas-mgmt'
+TIMEOUT_VALUE = 30
 
 
 def get_cluster_from_text(text):
@@ -58,7 +59,7 @@ class AutoBlackout(PluginBase):
                 self.blackout_url,
                 json=blackout_request,
                 headers=self.blackout_headers,
-                timeout=30)
+                timeout=TIMEOUT_VALUE)
             LOG.debug('Blackout created successfully')
         except TimeoutError:
             LOG.error(
@@ -73,7 +74,7 @@ class AutoBlackout(PluginBase):
                 headers=self.authorization_header) \
                     if app.config.get('AUTH_REQUIRED') else requests.get(
                         self.get_blackouts_url,
-                        timeout=30)
+                        timeout=TIMEOUT_VALUE)
         except TimeoutError:
             LOG.error(
                 'Time-out error when retrieving list of current blackouts')
@@ -105,7 +106,7 @@ class AutoBlackout(PluginBase):
                 requests.delete(
                     delete_blackout_url,
                     headers=self.authorization_header,
-                    timeout=30)
+                    timeout=TIMEOUT_VALUE)
                 LOG.debug('Blackout deleted successfully')
             except TimeoutError:
                 LOG.error(
