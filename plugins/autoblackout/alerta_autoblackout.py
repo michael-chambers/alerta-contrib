@@ -16,6 +16,12 @@ BLACKOUT_EVENTS = app.config.get('AUTOBLACKOUT_EVENTS') \
 MGMT_CLUSTER_NAME = 'kaas-mgmt'
 
 
+def get_cluster_from_text(text):
+    cluster = re.findall("(?<=\/)\S+", text)[0]
+    if cluster:
+        return cluster
+
+
 class AutoBlackout(PluginBase):
     def __init__(self, name=None):
         self.blackout_url = f'{API_URL}/blackout'
@@ -60,7 +66,7 @@ class AutoBlackout(PluginBase):
         except ConnectionError:
             LOG.error(f'Unable to create blackout for alert {alert.id}')
 
-    def _delete_blackout(self, alert):
+    def _delete_blackout(self, alert, cluster):
         try:
             response = requests.get(
                 self.get_blackouts_url,
@@ -86,7 +92,8 @@ class AutoBlackout(PluginBase):
         blackout_id = ""
         for blackout in blackout_data['blackouts']:
             if blackout['environment'].upper() == alert.environment.upper() \
-                    and blackout['text'].upper() == alert.event.upper():
+                    and blackout['text'].upper() == alert.event.upper() \
+                    and blackout['resource'] == cluster:
                 blackout_id = blackout['id']
                 break
 
@@ -115,7 +122,9 @@ class AutoBlackout(PluginBase):
                     or alert.severity.upper() == 'NORMAL'):
             for event in BLACKOUT_EVENTS:
                 if event.upper() == alert.event.upper():
-                    self._delete_blackout(alert)
+                    cluster = get_cluster_from_text(alert.text)
+                    if cluster.upper() == alert.resource.upper():
+                        self._delete_blackout(alert, cluster)
         return alert
 
     def post_receive(self, alert, **kwargs):
@@ -133,7 +142,7 @@ class AutoBlackout(PluginBase):
                     LOG.debug(
                         f'''Blackout event {alert.event}
                         identified for alert {alert.id}''')
-                    cluster = re.findall("(?<=\/)\S+", alert.text)[0]
+                    cluster = get_cluster_from_text(alert.text)
                     if cluster:
                         self._create_blackout(alert, cluster)
                     else:
