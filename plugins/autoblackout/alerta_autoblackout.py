@@ -11,7 +11,8 @@ LOG = logging.getLogger('alerta.plugins.autoblackout')
 BASE_URL = app.config.get('BASE_URL') or os.environ.get('BASE_URL')
 API_URL = f'http://localhost:8080{BASE_URL}'
 API_KEY = os.environ.get('ALERTA_API_KEY') or os.environ.get('ADMIN_KEY')
-BLACKOUT_EVENTS = app.config.get('AUTOBLACKOUT_EVENTS') or os.environ.get('AUTOBLACKOUT_EVENTS')
+BLACKOUT_EVENTS = app.config.get('AUTOBLACKOUT_EVENTS') \
+    or os.environ.get('AUTOBLACKOUT_EVENTS')
 MGMT_CLUSTER_NAME = 'kaas-mgmt'
 
 
@@ -35,8 +36,9 @@ class AutoBlackout(PluginBase):
 
     def _create_blackout(self, alert, cluster):
         blackout_duration = app.config.get(
-            'AUTOBLACKOUT_MGMT_DURATION' if cluster == MGMT_CLUSTER_NAME else 'AUTOBLACKOUT_CHILD_DURATION'
-        ) or app.config.get('BLACKOUT_DURATION')
+            'AUTOBLACKOUT_MGMT_DURATION' if cluster == MGMT_CLUSTER_NAME
+            else 'AUTOBLACKOUT_CHILD_DURATION') \
+                or app.config.get('BLACKOUT_DURATION')
 
         blackout_request = {
             "duration": blackout_duration,
@@ -46,26 +48,38 @@ class AutoBlackout(PluginBase):
         }
         try:
             # create the blackout
-            requests.post(self.blackout_url, json=blackout_request, headers=self.blackout_headers, timeout=30)
+            requests.post(
+                self.blackout_url,
+                json=blackout_request,
+                headers=self.blackout_headers,
+                timeout=30)
             LOG.debug('Blackout created successfully')
         except TimeoutError:
-            LOG.error(f'Request to create blackout timed-out for alert {alert.id}')
+            LOG.error(
+                f'Request to create blackout timed-out for alert {alert.id}')
         except ConnectionError:
             LOG.error(f'Unable to create blackout for alert {alert.id}')
 
     def _delete_blackout(self, alert):
         try:
-            response = requests.get(self.get_blackouts_url, headers=self.authorization_header) \
-                if app.config.get('AUTH_REQUIRED') else requests.get(self.get_blackouts_url, timeout=30)
+            response = requests.get(
+                self.get_blackouts_url,
+                headers=self.authorization_header) \
+                    if app.config.get('AUTH_REQUIRED') else requests.get(
+                        self.get_blackouts_url,
+                        timeout=30)
         except TimeoutError:
-            LOG.error('Time-out error when retrieving list of current blackouts')
+            LOG.error(
+                'Time-out error when retrieving list of current blackouts')
             return
         except ConnectionError:
             LOG.error('Unable to retrieve list of current blackouts')
             return
 
         blackout_data = json.loads(response.text)
-        LOG.debug('Autoblackout close event received, searching for existing blackout')
+        LOG.debug(
+            '''Autoblackout close event received,
+            searching for existing blackout''')
 
         # iterate through returned blackouts and match for environment and tag
         # then record the ID of the matching blackout
@@ -81,16 +95,24 @@ class AutoBlackout(PluginBase):
             LOG.debug('Existing blackout found, attempting to delete')
             delete_blackout_url = f'{self.blackout_url}/{blackout_id}'
             try:
-                requests.delete(delete_blackout_url, headers=self.authorization_header, timeout=30)
+                requests.delete(
+                    delete_blackout_url,
+                    headers=self.authorization_header,
+                    timeout=30)
                 LOG.debug('Blackout deleted successfully')
             except TimeoutError:
-                LOG.error(f'Request timed-out to delete blackout {blackout_id}')
+                LOG.error(
+                    f'Request timed-out to delete blackout {blackout_id}')
             except ConnectionError:
                 LOG.error(f'Unable to delete blackout {blackout_id}')
 
     def pre_receive(self, alert, **kwargs):
-        # check to see if this alert is closing out an AUTOBLACKOUT event, and if so, delete the matching blackout
-        if alert and BLACKOUT_EVENTS and (alert.status.upper() == 'CLOSED' or alert.severity.upper() == 'NORMAL'):
+        # check to see if this alert is closing out an AUTOBLACKOUT event
+        # if so, delete the matching blackout
+        if alert and BLACKOUT_EVENTS \
+                and (
+                    alert.status.upper() == 'CLOSED'
+                    or alert.severity.upper() == 'NORMAL'):
             for event in BLACKOUT_EVENTS:
                 if event.upper() == alert.event.upper():
                     self._delete_blackout(alert)
@@ -98,19 +120,26 @@ class AutoBlackout(PluginBase):
 
     def post_receive(self, alert, **kwargs):
         if not BLACKOUT_EVENTS:
-            LOG.error('No AUTOBLACKOUT_EVENTS defined, aborting autoblackout post_receive function')
+            LOG.error(
+                '''No AUTOBLACKOUT_EVENTS defined,
+                aborting autoblackout post_receive function''')
             return alert
 
-        # check to see if this alert is opening an AUTOBLACKOUT event, and if so, create a blackout
+        # check to see if this alert is opening an AUTOBLACKOUT event
+        # if so, create a blackout
         if alert and alert.status == 'open':
             for event in BLACKOUT_EVENTS:
                 if event.upper() == alert.event.upper():
-                    LOG.debug(f'Blackout event {alert.event} identified for alert {alert.id}')
-                    cluster = re.findall("\/\S+", alert.text)[0]
+                    LOG.debug(
+                        f'''Blackout event {alert.event}
+                        identified for alert {alert.id}''')
+                    cluster = re.findall("(?<=\/)\S+", alert.text)[0]
                     if cluster:
                         self._create_blackout(alert, cluster)
                     else:
-                        LOG.error('Cluster name missing from alert description, unable to create blackout')
+                        LOG.error(
+                            '''Cluster name missing from alert description,
+                            unable to create blackout''')
         return alert
 
     def status_change(self, alert, status, text, **kwargs):
