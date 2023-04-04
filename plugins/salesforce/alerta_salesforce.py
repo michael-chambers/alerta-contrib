@@ -113,7 +113,11 @@ def read_sf_auth_values(customer, environment, cluster_name):
         env_id, username, password = get_sf_env_credentials(
             customer, environment, cluster_name)
         values = {
-            'AUTH_URL': f'instance_{customer.replace(" ", "-")}_{environment.replace(" ", "-")}_{cluster_name.replace(" ", "-")}',
+            'AUTH_URL': 'instance_%s_%s_%s' % (
+                customer.replace(" ", "-"),
+                environment.replace(" ", "-"),
+                cluster_name.replace(" ", "-")
+                ),
             'USERNAME': username,
             'PASSWORD': password,
             'ORGANIZATION_ID': app.config.get('OPSCARE_CUSTOMER_INFO')[customer]['sf_org_id'],
@@ -161,7 +165,10 @@ class SFIntegration(PluginBase):
                         f'SRE [{alert.severity.upper()}] {alert.event}', alert.text, alert.serialize)
                     if sf_response['status'] == 'created':
                         case_link = "https://mirantis.my.salesforce.com/{}".format(sf_response['case_id'])
-                        alert.attributes['salesforce'] = '<a href="%s" target="_blank">%s<a>' % (case_link, sf_response['case_id'])
+                        alert.attributes['salesforce'] = '<a href="%s" target="_blank">%s<a>' % (
+                            case_link,
+                            sf_response['case_id']
+                            )
                         text = "SalesForce case created"
                     elif sf_response['status'] == 'duplicate':
                         text = "SalesForce case exists for this alert"
@@ -182,7 +189,9 @@ class SFIntegration(PluginBase):
             alert.attributes['salesforce'] = '<a href="%s" target="_blank">%s<a>' % (ticket_url, ticket_id)
         elif re.search("https://mirantis.lightning.force.com/", text):
             LOG.debug("SFDC Lightning URL found in note")
-            ticket_url = re.findall("https://mirantis\.lightning\.force\.com/lightning/r/(?:[Cc]ase/)?[a-zA-Z0-9]{18}\S*", text)[0]
+            ticket_url = re.findall(
+                "https://mirantis\.lightning\.force\.com/lightning/r/(?:[Cc]ase/)?[a-zA-Z0-9]{18}\S*", text
+                )[0]
             ticket_id = re.findall("(?<=lightning/r/)(?:[Cc]ase/)?([a-zA-Z0-9]{18})", text)[0]
             alert.attributes['salesforce'] = '<a href="%s" target="_blank">%s<a>' % (ticket_url, ticket_id)
         return alert
