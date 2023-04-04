@@ -18,7 +18,7 @@ TIMEOUT_VALUE = 30
 
 
 def get_cluster_from_text(text):
-    cluster = re.findall("(?<=\/)\S+", text)[0]
+    cluster = re.findall("(?<=/)\S+", text)[0]
     if cluster:
         return cluster
 
@@ -124,8 +124,7 @@ class AutoBlackout(PluginBase):
             for event in BLACKOUT_EVENTS:
                 if event.upper() == alert.event.upper():
                     cluster = get_cluster_from_text(alert.text)
-                    if cluster.upper() == alert.resource.upper():
-                        self._delete_blackout(alert, cluster)
+                    self._delete_blackout(alert, cluster)
         return alert
 
     def post_receive(self, alert, **kwargs):
