@@ -94,7 +94,8 @@ class AutoBlackout(PluginBase):
         for blackout in blackout_data['blackouts']:
             if blackout['environment'].upper() == alert.environment.upper() \
                     and blackout['text'].upper() == alert.event.upper() \
-                    and blackout['resource'] == cluster:
+                    and blackout['resource'] == cluster \
+                    and blackout['status'] == "active":
                 blackout_id = blackout['id']
                 break
 
