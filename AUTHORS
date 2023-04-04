@@ -64,4 +64,3 @@ Yoshiharu Mori <y-mori@sraoss.co.jp>
 Michael Chambers <mchambers@mirantis.com>
 
 $ git log --format='%aN <%aE>' | sort -f | uniq
-

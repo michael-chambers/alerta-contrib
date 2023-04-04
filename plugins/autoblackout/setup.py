@@ -1,27 +1,22 @@
-
 from setuptools import setup, find_packages
 
-version = '1.3.1'
+version = '1.0.0'
 
 setup(
-    name="alerta-salesforce",
+    name="alerta-autoblackout",
     version=version,
-    description='Alerta plugin for SalesForce',
+    description='Alerta plugin for automatic blackouts based on events',
     url='https://github.com/michael-chambers/alerta-contrib',
     license='MIT',
     author='Michael Chambers',
     author_email='mchambers@mirantis.com',
     packages=find_packages(),
-    py_modules=['alerta_salesforce'],
-    install_requires=[
-        'simple-salesforce',
-        'cachetools'
-    ],
+    py_modules=['alerta_autoblackout'],
     include_package_data=True,
     zip_safe=True,
     entry_points={
         'alerta.plugins': [
-            'salesforce = alerta_salesforce:SFIntegration'
+            'autoblackout = alerta_autoblackout:AutoBlackout'
         ]
     }
 )

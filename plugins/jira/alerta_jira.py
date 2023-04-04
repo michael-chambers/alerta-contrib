@@ -1,15 +1,16 @@
-import logging
-import os
 import http.client
 import json
+import logging
+import os
 from base64 import b64encode
 import re
+
+from alerta.plugins import PluginBase
 
 try:
     from alerta.plugins import app  # alerta >= 5.0
 except ImportError:
     from alerta.app import app  # alerta < 5.0
-from alerta.plugins import PluginBase
 
 # set plugin logger
 LOG = logging.getLogger('alerta.plugins.jira')
@@ -21,6 +22,7 @@ JIRA_ACTION_ONLY = app.config.get('JIRA_ACTION_ONLY', False) or os.environ.get('
 JIRA_USER = app.config.get('JIRA_USER') or os.environ.get('JIRA_USER')
 JIRA_PASS = app.config.get('JIRA_PASS') or os.environ.get('JIRA_PASS')
 
+
 class JiraCreate(PluginBase):
     def __init__ (self, name=None):
         LOG.debug(f'JIRA_ACTION_ONLY is set to {JIRA_ACTION_ONLY}')
@@ -29,14 +31,14 @@ class JiraCreate(PluginBase):
 
     def _sendjira(self, resource, event, value, environment, customer, tags, text, severity):
         LOG.info('JIRA: Create task ...')
-        userpass = "%s:%s" %(JIRA_USER, JIRA_PASS)
-        userAndPass = b64encode(bytes(userpass, "utf-8")).decode("ascii")
+        userpass = '{}:{}'.format(JIRA_USER, JIRA_PASS)
+        userAndPass = b64encode(bytes(userpass, 'utf-8')).decode('ascii')
         LOG.debug('JIRA_URL: {}'.format(JIRA_URL))
-        conn = http.client.HTTPSConnection("%s" %(JIRA_URL))
-        
+        conn = http.client.HTTPSConnection('%s' % (JIRA_URL))
+
         payload_dict = {
-            "fields": {
-                "project":
+            'fields': {
+                'project':
                 {
                     "key": f"{JIRA_PROJECT}"
                 },
@@ -52,13 +54,13 @@ class JiraCreate(PluginBase):
         LOG.debug(f"payload_dict is: {payload_dict}")
         payload = json.dumps(payload_dict, indent = 4)
         headers = {
-            'Content-Type': "application/json",
-            'Authorization': "Basic %s" %  userAndPass
+            'Content-Type': 'application/json',
+            'Authorization': 'Basic %s' % userAndPass
         }
 
-        conn.request("POST", '/rest/api/2/issue/', payload, headers)
+        conn.request('POST', '/rest/api/2/issue/', payload, headers)
         res = conn.getresponse()
-        data = res.read()            
+        data = res.read()
         data = json.loads(data)
         return data["key"]
 

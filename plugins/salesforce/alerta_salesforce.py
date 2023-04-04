@@ -48,6 +48,7 @@ SALESFORCE_CONFIG = 'temp_configuration'
 
 LOG = logging.getLogger('alerta.plugins.salesforce')
 
+
 @contextmanager
 def flocked(fd):
     try:
@@ -73,12 +74,15 @@ def sf_auth_retry(method):
         return method(self, *args, **kwargs)
     return wrapper
 
+
 def get_sf_env_credentials(customer, environment, cluster_name):
     env_id = ""
     username = ""
     password = ""
     try:
-        env_clusters = app.config.get('OPSCARE_CUSTOMER_INFO')[customer]['environments'][environment]
+        env_clusters = app.config.get(
+            'OPSCARE_CUSTOMER_INFO'
+            )[customer]['environments'][environment]
         LOG.debug(f'env_clusters are {env_clusters}')
         for cluster_id, cluster_info in env_clusters.items():
             if cluster_info['name'] == cluster_name:
@@ -89,7 +93,8 @@ def get_sf_env_credentials(customer, environment, cluster_name):
                 if 'sf_password' in cluster_info.keys():
                     password = cluster_info['sf_password']
                 break
-        # if any values weren't found at the cluster level, look for them in the environment level
+        # if any values weren't found at the cluster level
+        # look for them in the environment level
         if not env_id:
             env_id = env_clusters['sf_env_id']
         if not username:
@@ -97,12 +102,16 @@ def get_sf_env_credentials(customer, environment, cluster_name):
         if not password:
             password = env_clusters['sf_password']
     except Exception as e:
-        LOG.error(f'Unable to find SFDC credentials for {environment}/{cluster_name}: {e}')
+        LOG.error(
+            f'''Unable to find SFDC credentials
+            for {environment}/{cluster_name}: {e}''')
     return env_id, username, password
+
 
 def read_sf_auth_values(customer, environment, cluster_name):
     try:
-        env_id, username, password = get_sf_env_credentials(customer, environment, cluster_name)
+        env_id, username, password = get_sf_env_credentials(
+            customer, environment, cluster_name)
         values = {
             'AUTH_URL': f'instance_{customer.replace(" ", "-")}_{environment.replace(" ", "-")}_{cluster_name.replace(" ", "-")}',
             'USERNAME': username,
@@ -118,16 +127,18 @@ def read_sf_auth_values(customer, environment, cluster_name):
     except Exception as e:
         LOG.error(e)
 
+
 class SfNotifierError(Exception):
     pass
 
+
 class SFIntegration(PluginBase):
-    def __init__ (self, name=None):
+    def __init__(self, name=None):
         super(SFIntegration, self).__init__(name)
 
     def pre_receive(self, alert, **kwargs):
         return alert
-    
+
     def post_receive(self, alert, **kwargs):
         if alert.event == 'HeartbeatFail':
             alert.severity = 'Critical'
@@ -143,13 +154,14 @@ class SFIntegration(PluginBase):
         if action == 'salesforce':
             configValues = read_sf_auth_values(alert.customer, alert.environment, alert.resource)
             self.client = SalesforceClient(configValues)
-            if not 'salesforce' in alert.attributes.keys():
+            if 'salesforce' not in alert.attributes.keys():
                 if 'jira' in alert.attributes.keys():
                     LOG.debug("Preparing to send alert to SalesForce")
-                    sf_response = self.client.create_case(f'SRE [{alert.severity.upper()}] {alert.event}', alert.text, alert.serialize)
+                    sf_response = self.client.create_case(
+                        f'SRE [{alert.severity.upper()}] {alert.event}', alert.text, alert.serialize)
                     if sf_response['status'] == 'created':
                         case_link = "https://mirantis.my.salesforce.com/{}".format(sf_response['case_id'])
-                        alert.attributes['salesforce'] = '<a href="%s" target="_blank">%s<a>' %(case_link,sf_response['case_id'])
+                        alert.attributes['salesforce'] = '<a href="%s" target="_blank">%s<a>' % (case_link, sf_response['case_id'])
                         text = "SalesForce case created"
                     elif sf_response['status'] == 'duplicate':
                         text = "SalesForce case exists for this alert"
@@ -163,12 +175,18 @@ class SFIntegration(PluginBase):
 
     def take_note(self, alert, text, **kwargs):
         LOG.debug(f"checking for SFDC ticket in note: {text}")
-        if re.search("https://mirantis.my.salesforce.com/", text):
-            LOG.debug("SFDC ticket found in note")
-            ticket =  re.findall("https://mirantis.my.salesforce.com/[a-zA-Z0-9]{15}", text)[0]
-            ticket_id = ticket.split("/")[-1]
-            alert.attributes['salesforce'] = '<a href="%s" target="_blank">%s<a>' %(ticket, ticket_id)
+        if re.search("https://mirantis\.my\.salesforce\.com/", text):
+            LOG.debug("SFDC legacy URL in note")
+            ticket_url = re.findall("https://mirantis\.my\.salesforce\.com/[a-zA-Z0-9]{15}", text)[0]
+            ticket_id = ticket_url.split("/")[-1]
+            alert.attributes['salesforce'] = '<a href="%s" target="_blank">%s<a>' % (ticket_url, ticket_id)
+        elif re.search("https://mirantis.lightning.force.com/", text):
+            LOG.debug("SFDC Lightning URL found in note")
+            ticket_url = re.findall("https://mirantis\.lightning\.force\.com/lightning/r/(?:[Cc]ase/)?[a-zA-Z0-9]{18}\S*", text)[0]
+            ticket_id = re.findall("(?<=lightning/r/)(?:[Cc]ase/)?([a-zA-Z0-9]{18})", text)[0]
+            alert.attributes['salesforce'] = '<a href="%s" target="_blank">%s<a>' % (ticket_url, ticket_id)
         return alert
+
 
 class SalesforceClient(object):
     def __init__(self, config):
