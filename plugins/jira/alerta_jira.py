@@ -41,8 +41,9 @@ class JiraCreate(PluginBase):
                 "project": {
                     "key": f'{JIRA_PROJECT}'
                 },
-                "summary": f'{alert.severity.upper()} - Cluster {alert.resource}: alert {alert.event}',
-                "description": f'Text: {alert.text}\n\nValue: {alert.value or "N/A"}\n\nTAGS\n{tags}',
+                "summary": f'{alert.severity.upper()} - {alert.resource}: {alert.event}',
+                "description": f'Text: {alert.text}\n\nValue: {alert.value or "N/A"}',
+                "customfield_26097": tags,
                 "labels": [f'{alert.customer.replace(" ", "")}', f'{alert.environment.replace(" ", "")}'],
                 "issuetype": {
                     "name": "Bug"
