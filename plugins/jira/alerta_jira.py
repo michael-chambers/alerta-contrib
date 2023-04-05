@@ -15,7 +15,8 @@ LOG = logging.getLogger('alerta.plugins.jira')
 # retrieve plugin configurations
 JIRA_URL = app.config.get('JIRA_URL') or os.environ.get('JIRA_URL')
 JIRA_PROJECT = app.config.get('JIRA_PROJECT') or os.environ.get('JIRA_PROJECT')
-JIRA_ACTION_ONLY = app.config.get('JIRA_ACTION_ONLY', False) or os.environ.get('JIRA_ACTION_ONLY', False)
+JIRA_ACTION_ONLY = app.config.get('JIRA_ACTION_ONLY', False) \
+    or os.environ.get('JIRA_ACTION_ONLY', False)
 JIRA_USER = app.config.get('JIRA_USER') or os.environ.get('JIRA_USER')
 JIRA_PASS = app.config.get('JIRA_PASS') or os.environ.get('JIRA_PASS')
 
@@ -44,7 +45,8 @@ class JiraCreate(PluginBase):
                 "summary": f'{alert.severity.upper()} - {alert.resource}: {alert.event}',
                 "description": f'Text: {alert.text}\n\nValue: {alert.value or "N/A"}',
                 "customfield_26097": tags,
-                "labels": [f'{alert.customer.replace(" ", "")}', f'{alert.environment.replace(" ", "")}'],
+                "labels": [f'{alert.customer.replace(" ", "")}',
+                           f'{alert.environment.replace(" ", "")}'],
                 "issuetype": {
                     "name": "Bug"
                 }
