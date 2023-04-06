@@ -143,9 +143,12 @@ class SFIntegration(PluginBase):
         if alert.event == 'HeartbeatFail':
             alert.severity = 'Critical'
             LOG.debug(f'Ready to send HeartbeatFail alert for {alert.resource} to SalesForce')
-            self.take_action(alert, 'salesforce', '')
+            self.take_action(alert, 'salesforce', '', skip_jira_check="True")
             LOG.debug(f'HeartbeatFail alert sent for {alert.resource}')
-            return alert
+        elif alert.event == 'KubeDeploymentOutage' and re.search("'stacklight/sf-notifier'", alert.text):
+            LOG.debug(f'Sending alert to SFDC for failure of sf-notifier pod in {alert.environment}/{alert.resource}')
+            self.take_action(alert, "salesforce", "", skip_jira_check="True")
+        return
 
     def status_change(self, alert, status, text, **kwargs):
         return alert
@@ -155,7 +158,7 @@ class SFIntegration(PluginBase):
             configValues = read_sf_auth_values(alert.customer, alert.environment, alert.resource)
             self.client = SalesforceClient(configValues)
             if 'salesforce' not in alert.attributes.keys():
-                if 'jira' in alert.attributes.keys():
+                if 'jira' in alert.attributes.keys() or kwargs['skip_jira_check'] == "True":
                     LOG.debug("Preparing to send alert to SalesForce")
                     sf_response = self.client.create_case(
                         f'SRE [{alert.severity.upper()}] {alert.event}', alert.text, alert.serialize)
