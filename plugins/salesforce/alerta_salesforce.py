@@ -2,10 +2,13 @@ import fcntl
 import hashlib
 import logging
 import time
+import re
+import os
+import requests
+import json
+
 from contextlib import contextmanager
-
 from cachetools import TTLCache
-
 from requests import Session
 from requests.exceptions import ConnectionError as RequestsConnectionError
 
@@ -13,7 +16,6 @@ from simple_salesforce import Salesforce
 from simple_salesforce import exceptions as sf_exceptions
 
 from alerta.plugins import PluginBase, app
-import re
 
 
 STATE_MAP = {
@@ -47,6 +49,11 @@ SESSION_FILE = '/tmp/session'
 SALESFORCE_CONFIG = 'temp_configuration'
 
 LOG = logging.getLogger('alerta.plugins.salesforce')
+
+BASE_URL = app.config.get('BASE_URL') or os.environ.get('BASE_URL')
+API_URL = f'http://localhost:8080{BASE_URL}'
+API_KEY = os.environ.get('ALERTA_API_KEY') or os.environ.get('ADMIN_KEY')
+TIMEOUT_VALUE = 30
 
 
 @contextmanager
@@ -134,6 +141,15 @@ class SfNotifierError(Exception):
 
 class SFIntegration(PluginBase):
     def __init__(self, name=None):
+        if app.config.get('AUTH_REQUIRED'):
+            self.headers = {
+                "Authorization": f"Key {API_KEY}",
+                "Content-type": "application/json"
+            }
+        else:
+            self.headers = {
+                "Content-type": "application/json"
+            }
         super(SFIntegration, self).__init__(name)
 
     def pre_receive(self, alert, **kwargs):
@@ -142,10 +158,31 @@ class SFIntegration(PluginBase):
     def post_receive(self, alert, **kwargs):
         if alert.event == 'HeartbeatFail':
             alert.severity = 'Critical'
-            LOG.debug(f'Ready to send HeartbeatFail alert for {alert.resource} to SalesForce')
-            self.take_action(alert, 'salesforce', '')
+            LOG.debug(f'Sending HeartbeatFail alert for {alert.resource} to SFDC')
+            self.take_action(alert, 'salesforce', '', skip_jira_check="True")
             LOG.debug(f'HeartbeatFail alert sent for {alert.resource}')
-            return alert
+        elif alert.event == 'KubeDeploymentOutage' \
+                and re.search("'stacklight/sf-notifier'", alert.text) \
+                and 'salesforce' not in alert.attributes.keys():
+            LOG.debug(
+                f'Sending alert to SFDC for failure of \
+                      sf-notifier pod in {alert.environment}/{alert.resource}')
+            alert, action, text = self.take_action(
+                alert, "salesforce", "", skip_jira_check="True")
+            LOG.debug(
+                f"Attempting to add SFDC case ID \
+                    {alert.attributes['salesforce']} to alert {alert.id}")
+            attribute_request = {
+                "attributes": {
+                    "salesforce": alert.attributes['salesforce']
+                }
+            }
+            requests.put(
+                f"{API_URL}/alert/{alert.id}/attributes",
+                headers=self.headers,
+                timeout=TIMEOUT_VALUE,
+                data=json.dumps(attribute_request))
+        return
 
     def status_change(self, alert, status, text, **kwargs):
         return alert
@@ -154,23 +191,28 @@ class SFIntegration(PluginBase):
         if action == 'salesforce':
             configValues = read_sf_auth_values(alert.customer, alert.environment, alert.resource)
             self.client = SalesforceClient(configValues)
-            if 'salesforce' not in alert.attributes.keys():
-                if 'jira' in alert.attributes.keys():
-                    LOG.debug("Preparing to send alert to SalesForce")
-                    sf_response = self.client.create_case(
-                        f'SRE [{alert.severity.upper()}] {alert.event}', alert.text, alert.serialize)
-                    if sf_response['status'] == 'created':
-                        case_link = "https://mirantis.my.salesforce.com/{}".format(sf_response['case_id'])
-                        alert.attributes['salesforce'] = '<a href="%s" target="_blank">%s<a>' % (case_link, sf_response['case_id'])
-                        text = "SalesForce case created"
-                    elif sf_response['status'] == 'duplicate':
-                        text = "SalesForce case exists for this alert"
-                    else:
-                        text = "Failed to create SalesForce case, check logs"
+            if 'salesforce' not in alert.attributes.keys() \
+                    and ('jira' in alert.attributes.keys() or kwargs['skip_jira_check'] == "True"):
+                LOG.debug("Preparing to send alert to SalesForce")
+                sf_response = self.client.create_case(
+                    f'SRE [{alert.severity.upper()}] {alert.event}',
+                    alert.text,
+                    alert.serialize)
+                LOG.debug(f"sf_response received with status of {sf_response['status']}")
+                if sf_response['status'] == 'created':
+                    case_link = "https://mirantis.my.salesforce.com/{}"\
+                        .format(sf_response['case_id'])
+                    alert.attributes['salesforce'] = '<a href="%s" target="_blank">%s<a>' \
+                        % (case_link, sf_response['case_id'])
+                    text = "SalesForce case created"
+                elif sf_response['status'] == 'duplicate':
+                    text = "SalesForce case exists for this alert"
                 else:
-                    text = "JIRA issue required before creating SalesForce case"
-            else:
+                    text = "Failed to create SalesForce case, check logs"
+            elif 'salesforce' in alert.attributes.keys():
                 text = "SalesForce case already created for this alert"
+            else:  # only remaining possibility is if a Jira issue is required
+                text = "JIRA issue required before creating SalesForce case"
         return alert, action, text
 
     def take_note(self, alert, text, **kwargs):
@@ -179,10 +221,13 @@ class SFIntegration(PluginBase):
             LOG.debug("SFDC legacy URL in note")
             ticket_url = re.findall("https://mirantis\.my\.salesforce\.com/[a-zA-Z0-9]{15}", text)[0]
             ticket_id = ticket_url.split("/")[-1]
-            alert.attributes['salesforce'] = '<a href="%s" target="_blank">%s<a>' % (ticket_url, ticket_id)
+            alert.attributes['salesforce'] = '<a href="%s" target="_blank">%s<a>' \
+                % (ticket_url, ticket_id)
         elif re.search("https://mirantis.lightning.force.com/", text):
             LOG.debug("SFDC Lightning URL found in note")
-            ticket_url = re.findall("https://mirantis\.lightning\.force\.com/lightning/r/(?:[Cc]ase/)?[a-zA-Z0-9]{18}\S*", text)[0]
+            ticket_url = re.findall(
+                "https://mirantis\.lightning\.force\.com/lightning/r/(?:[Cc]ase/)?[a-zA-Z0-9]{18}\S*",
+                text)[0]
             ticket_id = re.findall("(?<=lightning/r/)(?:[Cc]ase/)?([a-zA-Z0-9]{18})", text)[0]
             alert.attributes['salesforce'] = '<a href="%s" target="_blank">%s<a>' % (ticket_url, ticket_id)
         return alert
